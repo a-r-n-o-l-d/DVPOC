@@ -28,7 +28,7 @@ import volume.VolumeFloatZz;
 
 /**
  *
- * @author Arnold Fertin
+ * @author Original source code : Bob Dougherty (http://www.optinav.info/FHT3D.htm)
  */
 public class FHT3D
 {

@@ -34,7 +34,7 @@ import volume.Point3D;
 import volume.VolumeFloatZz;
 
 /**
- * A tester : ajouter du bruit dans fourier et répéter la mesure, ou directement sur correlation de phase
+ * 
  *
  * @author Arnold Fertin
  */

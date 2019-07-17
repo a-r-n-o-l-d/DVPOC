@@ -28,7 +28,7 @@ import volume.Point3D;
 import volume.VolumeFloatZz;
 
 /**
- * Ne marche pas pour des dimensions impaires.
+ * Doesn't work with odds dimensions.
  * @author Arnold Fertin
  */
 public class SwapQuadrants3D
