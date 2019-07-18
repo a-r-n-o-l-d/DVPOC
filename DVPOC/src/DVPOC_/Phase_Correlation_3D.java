@@ -21,7 +21,7 @@
  * The fact that you are presently reading this means that you have had knowledge of the CeCILL-C license and that you
  * accept its terms.
  */
-package volume_registration;
+package DVPOC_;
 
 /*
  * Copyright (C) 2015 Arnold Fertin

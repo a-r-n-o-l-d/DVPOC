@@ -21,7 +21,7 @@
  * The fact that you are presently reading this means that you have had knowledge of the CeCILL-C license and that you
  * accept its terms.
  */
-package volume_registration;
+package DVPOC_;
 
 /*
  * Copyright (C) 2015 Arnold Fertin
@@ -47,8 +47,7 @@ import ij.plugin.PlugIn;
 import java.util.Locale;
 import registration.DisplacementField;
 import registration.RegistrationData;
-import registration.RegistrationDoublePass;
-import util.ConcurrencyUtils;
+import registration.RegistrationSinglePass;
 import util.UtilIJ;
 import volume.Dimensions;
 import volume.VolumeByteZz;
@@ -59,14 +58,8 @@ import volume.WindowType;
  *
  * @author Arnold Fertin
  */
-public class Registration_3D_double_pass implements PlugIn
+public class Registration_3D_single_pass implements PlugIn
 {
-    private static final int DEF_WIN_SIZE = 3;
-
-    private static final int S_B_DEPTH = 32;
-
-    private static final int M_B_DEPTH = 8;
-
     private VolumeFloatZz volume1;
 
     private VolumeFloatZz volume2;
@@ -77,14 +70,12 @@ public class Registration_3D_double_pass implements PlugIn
 
     private Dimensions dims;
 
-    private Dimensions dime;
-
     private double pValueLevel;
 
     private String savePath = "";
 
     @Override
-    public void run(final String string)
+    public void run(String string)
     {
         Locale.setDefault(new Locale("en", "US"));
         if (!doDialog())
@@ -96,14 +87,16 @@ public class Registration_3D_double_pass implements PlugIn
             IJ.log("Path is not defined");
             return;
         }
-        ConcurrencyUtils.setNumberOfThreads(Runtime.getRuntime().availableProcessors());
-        final RegistrationData dat = new RegistrationData(volume1, volume2, type, dims, dime, pValueLevel);
-        final DisplacementField field = new DisplacementField(volumeMask);
-        final RegistrationDoublePass reg = new RegistrationDoublePass(dat, field);
+        //ConcurrencyUtils.setNumberOfThreads(4);
         final long t1 = System.nanoTime();
+        final RegistrationData dat = new RegistrationData(volume1, volume2, type, dims, dims, pValueLevel);
+        final DisplacementField field = new DisplacementField(volumeMask);
+        final RegistrationSinglePass reg = new RegistrationSinglePass(dat, field);
         reg.match();
         final long t2 = System.nanoTime() - t1;
+
         IJ.saveString(field.toString(dat, t2), savePath);
+
     }
 
     private boolean doDialog()
@@ -118,32 +111,22 @@ public class Registration_3D_double_pass implements PlugIn
         };
         final String[] stkTitles = UtilIJ.getStackTitles(false);
         final GenericDialog gd = new GenericDialog("Volume Registration", IJ.getInstance());
-
         gd.addChoice("Stack_1", stkTitles, stkTitles[0]);
         gd.addChoice("Stack_2", stkTitles, stkTitles[0]);
         gd.addChoice("Mask", stkTitles, stkTitles[0]);
-
         gd.addChoice("Window_type", WindowType.NAMES, WindowType.NAMES[2]);
-
-        gd.addMessage("Starting_window_size:");
-        gd.addChoice("Window_size_XY_start", winSize, winSize[DEF_WIN_SIZE]);
-        gd.addChoice("Window_size_Z_start", winSize, winSize[DEF_WIN_SIZE]);
-
-        gd.addMessage("Ending_window_size:");
-        gd.addChoice("Window_size_end", winSize, winSize[1]);
-
-        gd.addChoice("P_value_significance", pValueLevels, pValueLevels[DEF_WIN_SIZE]);
-        gd.addStringField("Save_path_directory", "");
+        gd.addChoice("Window_size_XY", winSize, winSize[3]);
+        gd.addChoice("Window_size_Z", winSize, winSize[3]);
+        gd.addChoice("P_value_significance", pValueLevels, pValueLevels[3]);
+        gd.addStringField("Save_path_file", "");
         gd.showDialog();
-
         if (gd.wasCanceled())
         {
             return false;
         }
-
         final ImagePlus img1 = WindowManager.getImage(gd.getNextChoice());
         final ImagePlus img2 = WindowManager.getImage(gd.getNextChoice());
-        if (img1.getBitDepth() != S_B_DEPTH || img2.getBitDepth() != S_B_DEPTH)
+        if (img1.getBitDepth() != 32 || img1.getBitDepth() != 32)
         {
             UtilIJ.errorMessage("Stacks must be 32-bit float.");
         }
@@ -151,36 +134,18 @@ public class Registration_3D_double_pass implements PlugIn
         {
             UtilIJ.errorMessage("Stacks with different dimensions.");
         }
-        volume1 = new VolumeFloatZz(img1);
-        volume2 = new VolumeFloatZz(img2);
         final ImagePlus mask = WindowManager.getImage(gd.getNextChoice());
         if (!UtilIJ.checkDimensions(img1, mask))
         {
             UtilIJ.errorMessage("Mask must be of the same size.");
         }
-        if (mask.getBitDepth() != M_B_DEPTH)
-        {
-            UtilIJ.errorMessage("Mask must be 8-bit binary.");
-        }
+        volume1 = new VolumeFloatZz(img1);
+        volume2 = new VolumeFloatZz(img2);
         volumeMask = new VolumeByteZz(mask);
-
         type = WindowType.valueOf(gd.getNextChoice());
-
         final int sizexy = Integer.parseInt(gd.getNextChoice());
         final int sizez = Integer.parseInt(gd.getNextChoice());
-
         dims = new Dimensions(sizexy, sizexy, sizez);
-
-        final int size = Integer.parseInt(gd.getNextChoice());
-        if (size >= 4)
-        {
-            dime = new Dimensions(size, size, size);
-        }
-        else
-        {
-            dime = new Dimensions(sizexy, sizexy, sizez);
-        }
-
         pValueLevel = Double.parseDouble(gd.getNextChoice());
         savePath = gd.getNextString();
 

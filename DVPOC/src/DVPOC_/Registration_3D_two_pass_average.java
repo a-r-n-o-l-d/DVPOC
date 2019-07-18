@@ -21,7 +21,7 @@
  * The fact that you are presently reading this means that you have had knowledge of the CeCILL-C license and that you
  * accept its terms.
  */
-package volume_registration;
+package DVPOC_;
 
 /*
  * Copyright (C) 2015 Arnold Fertin
@@ -44,11 +44,10 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.plugin.PlugIn;
-import java.io.File;
 import java.util.Locale;
 import registration.DisplacementField;
-import registration.Registration;
 import registration.RegistrationData;
+import registration.RegistrationTwoPassAverage27;
 import util.UtilIJ;
 import volume.Dimensions;
 import volume.VolumeByteZz;
@@ -59,7 +58,7 @@ import volume.WindowType;
  *
  * @author Arnold Fertin
  */
-public class Registration_3D implements PlugIn
+public class Registration_3D_two_pass_average implements PlugIn
 {
     private VolumeFloatZz volume1;
 
@@ -69,15 +68,13 @@ public class Registration_3D implements PlugIn
 
     private WindowType type;
 
-    private Dimensions startDim;
-
-    private Dimensions endDim;
-
-    private boolean display;
+    private Dimensions dims;
 
     private double pValueLevel;
 
     private String savePath = "";
+
+    private static final int MIN_SIZE = 8;
 
     @Override
     public void run(String string)
@@ -87,36 +84,15 @@ public class Registration_3D implements PlugIn
         {
             return;
         }
-        final long t1 = System.nanoTime();
-        final RegistrationData dat = new RegistrationData(volume1, volume2, type, startDim, endDim,
-                                                          pValueLevel);
+        if (savePath.equals(""))
+        {
+            return;
+        }
+        final RegistrationData dat = new RegistrationData(volume1, volume2, type, dims,
+                                                          new Dimensions(MIN_SIZE, MIN_SIZE, MIN_SIZE), pValueLevel);
         final DisplacementField field = new DisplacementField(volumeMask);
-        final Registration reg = new Registration(dat, field);
+        final RegistrationTwoPassAverage27 reg = new RegistrationTwoPassAverage27(dat, field, savePath);
         reg.match();
-        final long t2 = System.nanoTime() - t1;
-        field.print(dat, t2);
-        if (display)
-        {
-            field.getVolumeU().getImagePlus("U").show();
-            field.getVolumeV().getImagePlus("V").show();
-            field.getVolumeW().getImagePlus("W").show();
-            field.getVolumeMaxCorr().getImagePlus("MaxCorr").show();
-        }
-        if (!savePath.equals(""))
-        {
-            saveTiff(field.getVolumeU().getImagePlus("U"), savePath);
-            saveTiff(field.getVolumeV().getImagePlus("V"), savePath);
-            saveTiff(field.getVolumeW().getImagePlus("W"), savePath);
-            saveTiff(field.getVolumeMaxCorr().getImagePlus("MaxCorr"), savePath);
-            saveTiff(volumeMask.getImagePlus("Mask"), savePath);
-            IJ.saveString(IJ.getLog(), savePath + File.separator + "Results.txt");
-        }
-    }
-
-    private void saveTiff(final ImagePlus img,
-                          final String path)
-    {
-        IJ.saveAs(img, "Tiff", path + File.separator + img.getTitle());
     }
 
     private boolean doDialog()
@@ -134,18 +110,11 @@ public class Registration_3D implements PlugIn
         gd.addChoice("Stack_1", stkTitles, stkTitles[0]);
         gd.addChoice("Stack_2", stkTitles, stkTitles[0]);
         gd.addChoice("Mask", stkTitles, stkTitles[0]);
-        gd.addChoice("Window_type", WindowType.NAMES, WindowType.NAMES[0]);
-        gd.addMessage("Starting_window_size:");
-        gd.addChoice("Window_size_in_X_start", winSize, winSize[3]);
-        gd.addChoice("Window_size_in_Y_start", winSize, winSize[3]);
-        gd.addChoice("Window_size_in_Z_start", winSize, winSize[2]);
-        gd.addMessage("Ending_window_size:");
-        gd.addChoice("Window_size_in_X_end", winSize, winSize[1]);
-        gd.addChoice("Window_size_in_Y_end", winSize, winSize[1]);
-        gd.addChoice("Window_size_in_Z_end", winSize, winSize[1]);
-        gd.addChoice("P_value_significance", pValueLevels, pValueLevels[2]);
-        gd.addCheckbox("Display_displacement_field_volume", true);
-        gd.addStringField("Save_path", "");
+        gd.addChoice("Window_type", WindowType.NAMES, WindowType.NAMES[2]);
+        gd.addChoice("Window_size_XY", winSize, winSize[3]);
+        gd.addChoice("Window_size_Z", winSize, winSize[3]);
+        gd.addChoice("P_value_significance", pValueLevels, pValueLevels[3]);
+        gd.addStringField("Save_path_directory", "");
         gd.showDialog();
         if (gd.wasCanceled())
         {
@@ -170,20 +139,10 @@ public class Registration_3D implements PlugIn
         volume2 = new VolumeFloatZz(img2);
         volumeMask = new VolumeByteZz(mask);
         type = WindowType.valueOf(gd.getNextChoice());
-        final int startWinX = Integer.parseInt(gd.getNextChoice());
-        final int startWinY = Integer.parseInt(gd.getNextChoice());
-        final int startWinZ = Integer.parseInt(gd.getNextChoice());
-        startDim = new Dimensions(startWinX, startWinY, startWinZ);
-        final int endWinX = Integer.parseInt(gd.getNextChoice());
-        final int endWinY = Integer.parseInt(gd.getNextChoice());
-        final int endWinZ = Integer.parseInt(gd.getNextChoice());
-        endDim = new Dimensions(endWinX, endWinY, endWinZ);
-        if (startWinX < endWinX || startWinY < endWinY || startWinZ < endWinZ)
-        {
-            UtilIJ.errorMessage("Ending window must be smaller than starting window.");
-        }
+        final int sizexy = Integer.parseInt(gd.getNextChoice());
+        final int sizez = Integer.parseInt(gd.getNextChoice());
+        dims = new Dimensions(sizexy, sizexy, sizez);
         pValueLevel = Double.parseDouble(gd.getNextChoice());
-        display = gd.getNextBoolean();
         savePath = gd.getNextString();
 
         return true;

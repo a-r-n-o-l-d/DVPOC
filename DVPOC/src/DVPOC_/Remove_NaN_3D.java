@@ -21,7 +21,7 @@
  * The fact that you are presently reading this means that you have had knowledge of the CeCILL-C license and that you
  * accept its terms.
  */
-package volume_registration;
+package DVPOC_;
 
 /*
  * Copyright (C) 2015 Arnold Fertin
@@ -39,8 +39,9 @@ package volume_registration;
  * You should have received a copy of the GNU General Public License along with this program. If
  * not, see <http://www.gnu.org/licenses/>.
  */
+
+
 import ij.IJ;
-import ij.gui.GenericDialog;
 import ij.plugin.PlugIn;
 import volume.Dimensions;
 import volume.Point3D;
@@ -51,81 +52,84 @@ import volume.VolumeFloatZz;
  *
  * @author Arnold Fertin
  */
-public class Find_Maxima_3D implements PlugIn
+public class Remove_NaN_3D implements PlugIn
 {
-
     private VolumeFloatZz vol;
-
-    private float threshold;
-
     private int count;
-
+    
     @Override
     public void run(String string)
     {
-        if (!doDialog())
-        {
-            return;
-        }
         vol = new VolumeFloatZz(IJ.getImage());
-        final Dimensions dims = vol.getDimensions();
-        final VolumeByteZz volMax = new VolumeByteZz(dims);
-        volMax.setVoxelDimensions(vol.getVoxelDimensions());
-        final Point3D p = new Point3D();
-        count = 0;
-        for (p.setZ(1); p.getZ() < dims.dimZ - 1; p.incZ())
+        count = 1;
+        while (count > 0)
         {
-            for (p.setY(1); p.getY() < dims.dimY - 1; p.incY())
-            {
-                for (p.setX(1); p.getX() < dims.dimX - 1; p.incX())
-                {
-                    volMax.setVoxel(p, isMaxima(p));
-                }
-            }
+            iterate();
+            IJ.log("Count: " + count);
         }
-        volMax.getImagePlus("Maxima").show();
-        IJ.log("Number of Maxima: " + count);
     }
-
-    private int isMaxima(final Point3D pos)
+    
+    private void iterate()
     {
-        final float value = vol.getVoxel(pos);
-        if (value < threshold)
+        final VolumeFloatZz tmp = (VolumeFloatZz) vol.duplicate();
+        final Dimensions dims = vol.getDimensions();
+        final Point3D p1 = new Point3D();
+        
+        count = 0;
+        for (p1.setZ(0); p1.getZ() < dims.dimZ; p1.incZ())
         {
-            return 0;
-        }
-        final Point3D p = new Point3D();
-        for (p.setZ(pos.getZ() - 1); p.getZ() <= pos.getZ() + 1; p.incZ())
-        {
-            for (p.setY(pos.getY() - 1); p.getY() <= pos.getY() + 1; p.incY())
+            for (p1.setY(0); p1.getY() < dims.dimY; p1.incY())
             {
-                for (p.setX(pos.getX() - 1); p.getX() <= pos.getX() + 1; p.incX())
+                for (p1.setX(0); p1.getX() < dims.dimX; p1.incX())
                 {
-                    if (!p.isAtPosition(pos))
+                    final float v1 = tmp.getVoxel(p1);
+                    if (!Float.isNaN(v1))
                     {
-                        final float v = vol.getVoxel(p);
-                        if (v >= value)
+                        final Point3D p2 = new Point3D();
+                        for (p2.setZ(p1.getZ() - 1); p2.getZ() <= p1.getZ() + 1; p2.incZ())
                         {
-                            return 0;
+                            for (p2.setY(p1.getY() - 1); p2.getY() <= p1.getY() + 1; p2.incY())
+                            {
+                                for (p2.setX(p1.getX() - 1); p2.getX() <= p1.getX() + 1; p2.incX())
+                                {
+                                    if (!p2.isAtPosition(p1) && dims.checkPosition(p2))
+                                    {
+                                        final float v2 = tmp.getVoxel(p2);
+                                        if (Float.isNaN(v2))
+                                        {
+                                            vol.setVoxel(p2, v1);
+                                            ++count;
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        count++;
-        return 255;
     }
-
-    private boolean doDialog()
-    {
-        final GenericDialog gd = new GenericDialog("3D Maxima Finder", IJ.getInstance());
-        gd.addNumericField("Threshold", 0, 0);
-        gd.showDialog();
-        if (gd.wasCanceled())
-        {
-            return false;
-        }
-        threshold = (float) gd.getNextNumber();
-        return true;
-    }
+//    
+//    private float getNearestValue(final Point3D p1)
+//    {
+//        final Point3D p2 = new Point3D();
+//        for (p2.setZ(p1.getZ() - 1); p2.getZ() <= p1.getZ() + 1; p2.incZ())
+//        {
+//            for (p2.setY(p1.getY() - 1); p2.getY() <= p1.getY() + 1; p2.incY())
+//            {
+//                for (p2.setX(p1.getX() - 1); p2.getX() <= p1.getX() + 1; p2.incX())
+//                {
+//                    if (!p2.isAtPosition(p1))
+//                    {
+//                        final float v = vol.getVoxel(p2);
+//                        if (!Float.isNaN(v))
+//                        {
+//                            return v;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        return Float.NaN;
+//    }
 }
