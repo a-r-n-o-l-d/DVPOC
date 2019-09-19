@@ -25,7 +25,7 @@ package volume;
 
 /**
  *
- * @author afertin
+ * @author Arnold Fertin
  */
 public final class VoxelSize
 {

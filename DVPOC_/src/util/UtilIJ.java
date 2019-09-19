@@ -36,7 +36,7 @@ import java.awt.Polygon;
 /**
  * V 0.2
  *
- * @author afertin
+ * @author Arnold Fertin
  */
 public final class UtilIJ
 {
